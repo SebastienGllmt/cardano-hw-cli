@@ -35,6 +35,7 @@ import {
   TxRelayTypes,
   TxWitnessKeys,
   _MultiAsset,
+  VotingRegistrationMetaData,
 } from '../transaction/types'
 import {
   Address,
@@ -44,6 +45,7 @@ import {
 } from '../types'
 import { LEDGER_VERSIONS } from './constants'
 import {
+  LedgerCatalystVotingRegistrationPayload,
   LedgerAssetGroup,
   LedgerCertificate,
   LedgerCryptoProviderFeature,
@@ -54,11 +56,15 @@ import {
   LedgerPoolParams,
   LedgerPoolRetirementParams,
   LedgerRelayParams,
+  LedgerSignCatalystVotingRegistrationResponse,
   LedgerSingleHostIPRelay,
   LedgerSingleHostNameRelay,
   LedgerTxOutputTypeAddressParams,
   LedgerWithdrawal,
   LedgerWitness,
+  TxMetadataType,
+  LedgerMetaDataCatalystVotingRegistration,
+  LedgerMetaDataHash,
 } from './ledgerTypes'
 import {
   CryptoProvider,
@@ -372,8 +378,20 @@ export const LedgerCryptoProvider: () => Promise<CryptoProvider> = async () => {
     validityIntervalStart && validityIntervalStart.toString()
   )
 
-  const prepareMetaDataHashHex = (metaDataHash: Buffer | null): string | null => (
-    metaDataHash && metaDataHash.toString('hex')
+  const prepareMetaDataHashHex = (metaDataHash: Buffer | null): LedgerMetaDataHash | null => (
+    metaDataHash && ({
+      type: TxMetadataType.HASH,
+      data: {
+        hashHex: metaDataHash.toString('hex'),
+      }
+    })
+  )
+
+  const prepareVotingRegistrationMetaData = (metaData: LedgerCatalystVotingRegistrationPayload): LedgerMetaDataCatalystVotingRegistration => (
+    {
+      type: TxMetadataType.CATALYST_VOTING_REGISTRATION,
+      data: metaData,
+    }
   )
 
   const ensureFirmwareSupportsParams = (txAux: _TxAux, signingFiles: HwSigningData[]) => {
@@ -447,6 +465,52 @@ export const LedgerCryptoProvider: () => Promise<CryptoProvider> = async () => {
       path: witness.path,
       signature: Buffer.from(witness.witnessSignatureHex, 'hex'),
     }))
+  }
+
+  const signVotingRegistrationMetaData = async (
+    txAux: _TxAux, network: Network,
+  ): Promise<string> => {
+    const inputs = []
+    // const inputs = txAux.inputs.map(
+    //   (input, i) => prepareInput(
+    //     SignTxUsecases.SIGN_TX_USECASE_ORDINARY_TX,
+    //     input,
+    //     getSigningPath(paymentSigningFiles, i)
+    //   ),
+    // )
+    const outputs = []
+    // const outputs = txAux.outputs.map((output) => prepareOutput(output, changeOutputFiles, network))
+    const certificates = []
+    const fee = `${txAux.fee}`
+    const ttl = prepareTtl(txAux.ttl)
+    const validityIntervalStart = null
+    const withdrawals = new Map()
+    const metaData = prepareVotingRegistrationMetaData(txAux.meta as LedgerCatalystVotingRegistrationPayload)
+
+    const response = await ledger.signTransaction(
+      network.networkId,
+      network.protocolMagic,
+      inputs,
+      outputs,
+      fee,
+      ttl,
+      certificates,
+      withdrawals,
+      metaData,
+      validityIntervalStart,
+    )
+    if (response.txHashHex !== txAux.getId()) {
+      throw Error(Errors.TxSerializationMismatchError)
+    }
+
+    const catalystVotingRegistration: LedgerSignCatalystVotingRegistrationResponse =
+      response.metadataSupplements.catalystVotingRegistration
+    
+    if (catalystVotingRegistration.metadataHashHex !== txAux.metaDataHash?.toString('hex')) {
+      throw Error(Errors.MetadataSerializationMismatchError)
+    }
+
+    return catalystVotingRegistration.signatureHex
   }
 
   const createWitnesses = async (ledgerWitnesses: LedgerWitness[], signingFiles: HwSigningData[]): Promise<{
@@ -562,5 +626,6 @@ export const LedgerCryptoProvider: () => Promise<CryptoProvider> = async () => {
     witnessTx,
     getXPubKeys,
     signOperationalCertificate,
+    signVotingRegistrationMetaData,
   }
 }

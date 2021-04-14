@@ -1,4 +1,4 @@
-import { CryptoProvider } from './crypto-providers/types'
+import { CryptoProvider, _AddressParameters } from './crypto-providers/types'
 import {
   constructSignedTxOutput,
   write,
@@ -8,7 +8,7 @@ import {
   constructSignedOpCertOutput,
   constructOpCertIssueCounterOutput,
 } from './fileWriter'
-import { TxAux } from './transaction/transaction'
+import { TxAux, VotingRegistrationDummyTxAux } from './transaction/transaction'
 import {
   ParsedShowAddressArguments,
   ParsedAddressKeyGenArguments,
@@ -17,14 +17,20 @@ import {
   ParsedVerificationKeyArguments,
   ParsedOpCertArguments,
   ParsedNodeKeyGenArguments,
+  ParsedCatalystVotingKeyRegistrationMetadataArguments,
 } from './types'
 import { LedgerCryptoProvider } from './crypto-providers/ledgerCryptoProvider'
 import { TrezorCryptoProvider } from './crypto-providers/trezorCryptoProvider'
 import {
-  validateSigning, validateWitnessing, validateKeyGenInputs, classifyPath, PathTypes,
+  validateSigning, validateWitnessing, validateKeyGenInputs, classifyPath, PathTypes, filterSigningFiles, getChangeAddress,
 } from './crypto-providers/util'
 import { Errors } from './errors'
 import { parseOpCertIssueCounterFile } from './command-parser/parsers'
+import { LedgerCatalystVotingRegistrationPayload } from './crypto-providers/ledgerTypes'
+import { VotingRegistrationMetaData } from './transaction/types'
+
+const { AddressTypes, bech32 } = require('cardano-crypto.js')
+const cbor = require('borc')
 
 const promiseTimeout = <T> (promise: Promise<T>, ms: number): Promise<T> => {
   const timeout: Promise<T> = new Promise((resolve, reject) => {
@@ -151,6 +157,46 @@ const CommandExecutor = async () => {
     write(args.issueCounterFile, constructOpCertIssueCounterOutput(issueCounter))
   }
 
+  const createCatalystVotingKeyRegistrationMetadata = async (args: ParsedCatalystVotingKeyRegistrationMetadataArguments) => {
+    // const { paymentSigningFiles, stakeSigningFiles } = filterSigningFiles(args.auxiliarySigningKeyData)
+    const { address } : { address: Buffer } = bech32.decode(args.paymentAddress)
+    const addressParameters = getChangeAddress(args.auxiliarySigningKeyData, address, args.network) as _AddressParameters
+
+    if (!addressParameters?.address || addressParameters.address.compare(address)) throw Error(Errors.InvalidAddressError)
+
+    const metaData: LedgerCatalystVotingRegistrationPayload = {
+      votingPublicKeyHex: args.votePublicKey,
+      stakingPath: args.hwStakeSigningFileData.path,
+      slotNumberStr: '0',
+      address: {
+        addressParams: {
+          addressTypeNibble: addressParameters.addressType,
+          spendingPath: addressParameters.paymentPath,
+          stakingPath: addressParameters.stakePath,
+        }
+      }
+    }
+    const txAux = VotingRegistrationDummyTxAux(metaData, args.paymentAddress, args.nonce)
+    args.auxiliarySigningKeyData.find((e) => e.path === addressParameters.stakePath)?.cborXPubKeyHex
+    const signatureHex = await cryptoProvider.signVotingRegistrationMetaData(txAux, args.network)
+
+    const votingRegistrationMetaData: VotingRegistrationMetaData = {
+      61284: {
+        1: metaData.votingPublicKeyHex,
+        2: cbor.decode(args.auxiliarySigningKeyData.find((e) => e.path === addressParameters.stakePath)?.cborXPubKeyHex as string),
+        3: address.toString('hex'),
+        4: args.nonce,
+      },
+      61285: {
+        1: signatureHex,
+      }
+    }
+
+    console.log(votingRegistrationMetaData)
+    // write voting_registration.cbor
+    // write(args.outFile, constructSignedTxOutput(args.txBodyFileData.era, signedTx))
+  }
+
   return {
     printDeviceVersion,
     showAddress,
@@ -160,6 +206,7 @@ const CommandExecutor = async () => {
     createTxWitness,
     createNodeSigningKeyFiles,
     createSignedOperationalCertificate,
+    createCatalystVotingKeyRegistrationMetadata,
   }
 }
 

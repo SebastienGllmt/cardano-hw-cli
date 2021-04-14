@@ -368,7 +368,7 @@ const TrezorCryptoProvider: () => Promise<CryptoProvider> = async () => {
     const withdrawals = txAux.withdrawals.map(
       (withdrawal: _Withdrawal) => prepareWithdrawal(withdrawal, stakeSigningFiles),
     )
-    const metaDataHex = prepareMetaDataHex(txAux.meta)
+    const metaDataHex = prepareMetaDataHex(txAux.meta as Buffer)
 
     const response = await TrezorConnect.cardanoSignTransaction(removeNullFields({
       inputs,
@@ -392,6 +392,10 @@ const TrezorCryptoProvider: () => Promise<CryptoProvider> = async () => {
 
     return response.payload.serializedTx as SignedTxCborHex
   }
+
+  const signVotingRegistrationMetaData = async (
+    txAux: _TxAux, network: Network,
+  ): Promise<string> => null as any
 
   const witnessTx = async (
     txAux: _TxAux,
@@ -420,6 +424,7 @@ const TrezorCryptoProvider: () => Promise<CryptoProvider> = async () => {
     signTx,
     getXPubKeys,
     signOperationalCertificate,
+    signVotingRegistrationMetaData,
   }
 }
 

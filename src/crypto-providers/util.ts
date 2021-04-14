@@ -380,20 +380,20 @@ const _packEnterpriseAddress = (
   }
 }
 
-const getChangeAddress = (
-  changeOutputFiles: HwSigningData[],
-  outputAddress: Buffer,
+const getAddressParameters = (
+  hwSigningData: HwSigningData[],
+  address: Buffer,
   network: Network,
 ): _AddressParameters | null => {
-  const addressType = getAddressType(outputAddress)
+  const addressType = getAddressType(address)
   try {
     switch (addressType) {
       case AddressTypes.BOOTSTRAP:
-        return _packBootStrapAddress(changeOutputFiles[0], network)
+        return _packBootStrapAddress(hwSigningData[0], network)
       case AddressTypes.BASE:
-        return _packBaseAddress(changeOutputFiles, network)
+        return _packBaseAddress(hwSigningData, network)
       case AddressTypes.ENTERPRISE:
-        return _packEnterpriseAddress(changeOutputFiles[0], network)
+        return _packEnterpriseAddress(hwSigningData[0], network)
       default: return null
     }
   } catch (e) {
@@ -464,7 +464,7 @@ export {
   findSigningPathForKeyHash,
   findSigningPathForKey,
   encodeAddress,
-  getChangeAddress,
+  getAddressParameters as getChangeAddress,
   getAddressAttributes,
   ipv4ToString,
   ipv6ToString,

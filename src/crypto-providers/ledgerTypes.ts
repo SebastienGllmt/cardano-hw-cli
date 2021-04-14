@@ -99,7 +99,6 @@ export type LedgerStakingBlockchainPointer = {
   txIndex: number,
   certificateIndex: number
 }
-
 export type LedgerToken = {
   assetNameHex: string,
   amountStr: string
@@ -127,3 +126,39 @@ export type LedgerTxOutputTypeAddressParams = {
 }
 
 export type LedgerOutput = LedgerTxOutputTypeAddress | LedgerTxOutputTypeAddressParams;
+
+export enum TxMetadataType { HASH, CATALYST_VOTING_REGISTRATION }
+
+export type LedgerMetaDataHash = {
+  type: TxMetadataType.HASH,
+  data: {
+    hashHex: string,
+  }
+}
+
+export type LedgerMetaDataCatalystVotingRegistration = {
+  type: TxMetadataType.CATALYST_VOTING_REGISTRATION,
+  data: LedgerCatalystVotingRegistrationPayload,
+}
+
+export type LedgerMetaData = LedgerMetaDataHash | LedgerMetaDataCatalystVotingRegistration
+
+export type LedgerSignCatalystVotingRegistrationResponse = {
+  signatureHex: string,
+  metadataHashHex: string,
+}
+
+export type LedgerCatalystVotingRegistrationPayload = {
+  votingPublicKeyHex: string,
+  stakingPath: BIP32Path,
+  slotNumberStr: string
+  address: {
+    addressParams: {
+      addressTypeNibble: number;
+      spendingPath: BIP32Path;
+      stakingPath?: BIP32Path | undefined;
+      stakingKeyHashHex?: string | undefined;
+      stakingBlockchainPointer?: LedgerStakingBlockchainPointer | undefined;
+    }
+  }
+}

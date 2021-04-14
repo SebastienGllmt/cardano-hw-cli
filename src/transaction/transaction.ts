@@ -12,10 +12,12 @@ import {
   _ByronWitness,
   XPubKeyCborHex,
   _XPubKey,
+  TxBodyKeys,
 } from './types'
 import { isUnsignedTxDecoded } from './guards'
 import { Errors } from '../errors'
 import { decodeCbor, encodeCbor } from '../util'
+import { LedgerCatalystVotingRegistrationPayload } from '../crypto-providers/ledgerTypes'
 
 const { blake2b } = require('cardano-crypto.js')
 
@@ -25,28 +27,46 @@ const TxByronWitness = (
 
 const TxShelleyWitness = (publicKey: Buffer, signature: Buffer): TxWitnessShelley => [publicKey, signature]
 
+const parseUnsignedTxDecoded = (unsignedTxDecoded: _UnsignedTxDecoded) => {
+  const parsedTx = parseUnsignedTx(unsignedTxDecoded)
+
+  const getId = (): string => {
+    const [txBody] = unsignedTxDecoded
+    const encodedTxBody = encodeCbor(txBody)
+    return blake2b(
+      encodedTxBody,
+      32,
+    ).toString('hex')
+  }
+
+  return {
+    getId,
+    unsignedTxDecoded,
+    ...parsedTx,
+  }
+}
+
 const TxAux = (unsignedTxCborHex: UnsignedTxCborHex): _TxAux => {
   const unsignedTxDecoded = decodeCbor(unsignedTxCborHex)
   if (!isUnsignedTxDecoded(unsignedTxDecoded)) {
     throw Error(Errors.InvalidTransactionBody)
   } else {
-    const parsedTx = parseUnsignedTx(unsignedTxDecoded)
-
-    const getId = (): string => {
-      const [txBody] = unsignedTxDecoded
-      const encodedTxBody = encodeCbor(txBody)
-      return blake2b(
-        encodedTxBody,
-        32,
-      ).toString('hex')
-    }
-
-    return {
-      getId,
-      unsignedTxDecoded,
-      ...parsedTx,
-    }
+    return parseUnsignedTxDecoded(unsignedTxDecoded)
   }
+}
+
+// TODO: Ledger type shouldnt be here, refactor
+const VotingRegistrationDummyTxAux = (metaData: LedgerCatalystVotingRegistrationPayload, address: any, fee: BigInt): _TxAux => {
+  const unsignedTxDecoded: _UnsignedTxDecoded = [new Map<TxBodyKeys, any>([
+    [TxBodyKeys.INPUTS, []],
+    // [TxBodyKeys.INPUTS, [Buffer.alloc(32, 0), 0]],
+    [TxBodyKeys.OUTPUTS, []],
+    [TxBodyKeys.FEE, fee],
+    [TxBodyKeys.TTL, 0],
+    [TxBodyKeys.META_DATA_HASH, blake2b(metaData, 32).toString('hex')],
+  ]), metaData]
+
+  return parseUnsignedTxDecoded(unsignedTxDecoded)
 }
 
 const TxSigned = (
@@ -89,6 +109,7 @@ export {
   TxByronWitness,
   TxShelleyWitness,
   TxAux,
+  VotingRegistrationDummyTxAux,
   TxSigned,
   Witness,
   XPubKey,

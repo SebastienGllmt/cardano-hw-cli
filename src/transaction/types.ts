@@ -1,3 +1,6 @@
+import { LedgerCatalystVotingRegistrationPayload } from "../crypto-providers/ledgerTypes"
+import { BIP32Path } from "../types"
+
 export enum TxBodyKeys {
   INPUTS = 0,
   OUTPUTS = 1,
@@ -137,7 +140,7 @@ export type _UnsignedTxParsed = {
   certificates: _Certificate[],
   withdrawals: _Withdrawal[],
   metaDataHash: Buffer | null,
-  meta: Buffer | null,
+  meta: LedgerCatalystVotingRegistrationPayload | Buffer | null,
   validityIntervalStart: BigInt | null,
   mint: _MultiAsset | null,
 }
@@ -162,7 +165,7 @@ export type _SignedTxDecoded = [
 
 export type _UnsignedTxDecoded = [
   Map<TxBodyKeys, any>,
-  Buffer | null,
+  LedgerCatalystVotingRegistrationPayload | Buffer | null,
 ]
 
 export type SignedTxCborHex = string
@@ -282,3 +285,15 @@ export type TxStakepoolRetirementCert = [
 ]
 
 export type TxWithdrawal = Map<Buffer, Lovelace>
+
+export type VotingRegistrationMetaData = {
+  61284: {
+    1: string, // voting_key - CBOR byte array
+    2: string, // stake_pub - CBOR byte array
+    3: string, // address - CBOR byte array (Cardano address to receive the voting rewards)
+    4: BigInt, // nonce
+  },
+  61285: {
+    1: string, // signature of blake2b_256_hash({61284:{<CBOR data under 61284 key }}>) by the stake key
+  }
+}

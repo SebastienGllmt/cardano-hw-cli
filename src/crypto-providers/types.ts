@@ -35,6 +35,7 @@ export type CryptoProvider = {
     issueCounter: OpCertIssueCounter,
     signingFile: HwSigningData[],
   ) => Promise<SignedOpCertCborHex>
+  signVotingRegistrationMetaData: (txAux: _TxAux, network: Network) => Promise<string>
 }
 
 export type _AddressParameters = {

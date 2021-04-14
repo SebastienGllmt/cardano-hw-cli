@@ -9,6 +9,7 @@ const enum Errors {
   InvalidOpCertIssueCounterFileError = 'Invalid operational certificate issue counter file',
   InvalidNodeKeyGenInputsError = 'Invalid node key-gen inputs',
   TxSerializationMismatchError = 'Tx serialization mismatch',
+  MetadataSerializationMismatchError = 'Metadata serialization mismatch',
   MissingHwSigningDataAtPathError = 'Can not find hw signing data',
   UndefinedCommandError = 'command undefined',
   MissingSigningFileError = 'missing signing file',
